@@ -21,10 +21,12 @@ pub struct PrivateKey {
   q: BigInt,
   p_square: BigInt,
   q_square: BigInt,
+  lambda: BigInt,
+  mu: BigInt,
 }
 
 impl PrivateKey {
-  fn new(p: BigInt, q: BigInt) -> PrivateKey {
+  fn new(p: BigInt, q: BigInt, lambda: BigInt, mu: BigInt) -> PrivateKey {
     let p_square = (&p) * (&p);
     let q_square = (&p) * (&p);
     PrivateKey {
@@ -32,9 +34,13 @@ impl PrivateKey {
       q,
       p_square,
       q_square,
+      lambda,
+      mu,
     }
   }
 }
+
+pub struct PlainText {}
 
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   use num::bigint::RandBigInt;
@@ -57,7 +63,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   // If mu doesn't exist the generation failed
   let pmod = power_mod(&g, &lambda, &n_square);
   let l_value = l_function(&pmod, &n);
-  let _mu = mod_inv(&l_value, &n)?;
+  let mu = mod_inv(&l_value, &n)?;
   //.expect(&format!("n ({}) does not divide g ({})", n, g));
   let p_square = (&p) * (&p);
   let q_square = (&q) * (&q);
@@ -68,6 +74,8 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
       q,
       p_square,
       q_square,
+      lambda,
+      mu,
     },
   ))
 }
