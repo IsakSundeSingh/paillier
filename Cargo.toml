@@ -9,3 +9,6 @@ num = { version = "0.2.1", features = ["rand"] }
 rand = "0.5"
 primes = "0.2.4"
 glass_pumpkin = "0.3.3"
+
+[dev-dependencies]
+proptest = "0.9.5"

@@ -1,5 +1,7 @@
 use num::traits::{One, ToPrimitive};
 use num::BigInt;
+
+#[derive(PartialEq)]
 pub struct PublicKey {
   g: BigInt,
   n: BigInt,
@@ -13,6 +15,7 @@ impl PublicKey {
   }
 }
 
+#[derive(PartialEq)]
 pub struct PrivateKey {
   p: BigInt,
   q: BigInt,
@@ -159,12 +162,18 @@ mod quick_maths {
     }
   }
 
-  #[test]
-  fn div_works() {
-    let a = BigInt::from_u64(10).unwrap();
-    let b = BigInt::from_u64(3).unwrap();
-    let v = div(&a, &b);
-    assert_ne!(a, (&v + BigInt::one()) * &b);
-    assert!(a >= v * b);
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    #[test]
+    fn div_works() {
+      let a = BigInt::from_u64(10).unwrap();
+      let b = BigInt::from_u64(3).unwrap();
+      let v = div(&a, &b);
+      assert_ne!(a, (&v + BigInt::one()) * &b);
+      assert!(a >= v * b);
+    }
   }
 }
