@@ -21,7 +21,7 @@ pub struct PrivateKey {
 #[derive(Debug, PartialEq)]
 pub struct PlainText(BigInt);
 impl PlainText {
-  fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
+  pub fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
     if m >= &BigInt::zero() && m < n {
       Some(PlainText(m.clone()))
     } else {
@@ -33,9 +33,10 @@ impl PlainText {
 #[derive(Debug)]
 pub struct CipherText(BigInt);
 impl CipherText {
-  fn new(c: BigInt, n_square: BigInt) -> Option<Self> {
-    if c >= Zero::zero() && c < n_square {
-      Some(CipherText(c))
+  fn new(c: &BigInt, n_square: &BigInt) -> Option<Self> {
+    println!("Ciphertext: {}", c);
+    if c >= &Zero::zero() && c < n_square {
+      Some(CipherText(c.clone()))
     } else {
       None
     }
@@ -54,7 +55,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
     gcd(&n, &(&(&p - BigInt::one()) * &(&q - BigInt::one()))),
     BigInt::one()
   );
-  let lambda = lcm(&p - BigInt::one(), &q - BigInt::one());
+  let lambda = lcm(&(&p - BigInt::one()), &(&q - BigInt::one()));
   let n_square = (&n) * (&n);
   assert!(&n_square > &num::traits::Zero::zero());
   let mut rng = rand::thread_rng();
@@ -80,8 +81,8 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   ))
 }
 
-fn encrypt(plaintext: &PlainText, key: &PublicKey) -> CipherText {
-  use quick_maths::{gcd, power_mod};
+pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
+  use quick_maths::{gcd, power_mod, Modulo};
   let PublicKey {
     ref n,
     ref g,
@@ -97,12 +98,13 @@ fn encrypt(plaintext: &PlainText, key: &PublicKey) -> CipherText {
   assert_eq!(gcd(&r, &n), BigInt::one());
 
   let PlainText(ref m) = plaintext;
-  let c = (power_mod(g, m, n_square) * power_mod(&r, n, n_square)) % n_square;
-  CipherText(c)
+  use num::bigint::BigInt;
+  let c = (power_mod(g, m, n_square) * power_mod(&r, n, n_square)).modulo(n_square);
+  CipherText::new(&c, n_square)
 }
 
-fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
-  use quick_maths::{l_function, power_mod};
+pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
+  use quick_maths::{l_function, power_mod, Modulo};
   let CipherText(c) = ciphertext;
   let PrivateKey {
     ref lambda,
@@ -117,7 +119,7 @@ fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
 
   assert!(c < &n_square);
 
-  let m = (l_function(&power_mod(c, lambda, &n_square), &n) * mu) % &n;
+  let m = (l_function(&power_mod(c, lambda, &n_square), &n) * mu).modulo(&n);
   PlainText::new(&m, &n)
 }
 
@@ -127,20 +129,16 @@ fn can_encrypt_and_decrypt() {
   let (public_key, private_key) = generate_keypair().expect("Couldn't generate keypair");
   let plaintext = PlainText::new(&BigInt::from_u64(123).unwrap(), &public_key.n)
     .expect("Couldn't encode plaintext");
-  let ciphertext = encrypt(&plaintext, &public_key);
-  let decrypted = decrypt(&ciphertext, &private_key);
-  if let Some(decrypted_plaintext) = decrypted {
-    assert_eq!(plaintext, decrypted_plaintext);
-  } else {
-    panic!("Error")
-  }
+  let ciphertext = encrypt(&plaintext, &public_key).expect("Couldn't encrypt plaintext");
+  let decrypted = decrypt(&ciphertext, &private_key).expect("Couldn't decrypt ciphertext");
+  assert_eq!(plaintext, decrypted);
 }
 
 mod quick_maths {
   use num::traits::{FromPrimitive, One, ToPrimitive, Zero};
   use num::BigInt;
-  pub(crate) fn lcm(a: BigInt, b: BigInt) -> BigInt {
-    num::integer::lcm(a, b)
+  pub(crate) fn lcm(a: &BigInt, b: &BigInt) -> BigInt {
+    num::integer::lcm(a.clone(), b.clone())
   }
   pub(crate) fn gcd(a: &BigInt, b: &BigInt) -> BigInt {
     num::integer::gcd(a.clone(), b.clone())
@@ -154,7 +152,7 @@ mod quick_maths {
     let mut mn = (modulus.clone(), a);
     let mut xy = (BigInt::zero(), BigInt::one());
     while mn.1 != BigInt::zero() {
-      let b = (&mn.0) % (&mn.1);
+      let b = (&mn.0).modulo(&mn.1);
       xy = (xy.1.clone(), (xy.0 - ((&mn.0) / (&mn.1)) * xy.1));
       mn = (mn.1, b);
     }
@@ -197,18 +195,18 @@ mod quick_maths {
     }
     // Now do the modular exponentiation algorithm:
     let mut result: BigInt = One::one();
-    let mut base = n % &m;
+    let mut base = n.modulo(&m);
     let mut exp = e;
     // Loop until we can return out result:
     macro_rules! two {
       () => {
-        BigInt::from_u64(2).unwrap()
+        &BigInt::from_u64(2).unwrap()
       };
     }
     loop {
-      if &exp % two!() == One::one() {
+      if &exp.modulo(two!()) == &One::one() {
         result *= &base;
-        result %= &m;
+        result = result.modulo(&m);
       }
 
       if exp == One::one() {
@@ -217,7 +215,24 @@ mod quick_maths {
 
       exp /= two!();
       base *= base.clone();
-      base %= &m;
+      base = base.modulo(&m);
+    }
+  }
+
+  pub trait Modulo<RHS = Self> {
+    type Output;
+    fn modulo(&self, rhs: &RHS) -> Self::Output;
+  }
+  impl Modulo<BigInt> for BigInt {
+    type Output = BigInt;
+    fn modulo(&self, rhs: &BigInt) -> Self::Output {
+      use num::traits::sign::Signed;
+      let r = self % rhs;
+      if r < BigInt::zero() {
+        r + rhs.abs()
+      } else {
+        r
+      }
     }
   }
 
