@@ -8,13 +8,6 @@ pub struct PublicKey {
   n_square: BigInt,
 }
 
-impl PublicKey {
-  fn new(g: BigInt, n: BigInt) -> PublicKey {
-    let n_square = (&n) * (&n);
-    PublicKey { g, n, n_square }
-  }
-}
-
 #[derive(PartialEq)]
 pub struct PrivateKey {
   p: BigInt,
@@ -25,21 +18,7 @@ pub struct PrivateKey {
   mu: BigInt,
 }
 
-impl PrivateKey {
-  fn new(p: BigInt, q: BigInt, lambda: BigInt, mu: BigInt) -> PrivateKey {
-    let p_square = (&p) * (&p);
-    let q_square = (&p) * (&p);
-    PrivateKey {
-      p,
-      q,
-      p_square,
-      q_square,
-      lambda,
-      mu,
-    }
-  }
-}
-
+#[derive(Debug, PartialEq)]
 pub struct PlainText(BigInt);
 impl PlainText {
   fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
@@ -51,6 +30,7 @@ impl PlainText {
   }
 }
 
+#[derive(Debug)]
 pub struct CipherText(BigInt);
 impl CipherText {
   fn new(c: BigInt, n_square: BigInt) -> Option<Self> {
@@ -121,13 +101,39 @@ fn encrypt(plaintext: &PlainText, key: &PublicKey) -> CipherText {
   CipherText(c)
 }
 
+fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
+  use quick_maths::{l_function, power_mod};
+  let CipherText(c) = ciphertext;
+  let PrivateKey {
+    ref lambda,
+    ref mu,
+    ref p,
+    ref q,
+    ..
+  } = key;
+
+  let n = p * q;
+  let n_square = &n * &n;
+
+  assert!(c < &n_square);
+
+  let m = (l_function(&power_mod(c, lambda, &n_square), &n) * mu) % &n;
+  PlainText::new(&m, &n)
+}
+
 #[test]
-fn can_encrypt() {
+fn can_encrypt_and_decrypt() {
   use num::traits::FromPrimitive;
   let (public_key, private_key) = generate_keypair().expect("Couldn't generate keypair");
   let plaintext = PlainText::new(&BigInt::from_u64(123).unwrap(), &public_key.n)
     .expect("Couldn't encode plaintext");
   let ciphertext = encrypt(&plaintext, &public_key);
+  let decrypted = decrypt(&ciphertext, &private_key);
+  if let Some(decrypted_plaintext) = decrypted {
+    assert_eq!(plaintext, decrypted_plaintext);
+  } else {
+    panic!("Error")
+  }
 }
 
 mod quick_maths {
