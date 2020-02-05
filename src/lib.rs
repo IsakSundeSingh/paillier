@@ -13,8 +13,6 @@ pub struct PublicKey {
 pub struct PrivateKey {
   p: BigInt,
   q: BigInt,
-  p_square: BigInt,
-  q_square: BigInt,
   lambda: BigInt,
   mu: BigInt,
 }
@@ -115,19 +113,9 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   let mu = mod_inv(&l_value, &n)?;
   //.expect(&format!("n ({}) does not divide g ({})", n, g));
 
-  let p_square = (&p) * (&p);
-  let q_square = (&q) * (&q);
-
   Some((
     PublicKey { g, n, n_square },
-    PrivateKey {
-      p,
-      q,
-      p_square,
-      q_square,
-      lambda,
-      mu,
-    },
+    PrivateKey { p, q, lambda, mu },
   ))
 }
 
@@ -138,7 +126,6 @@ pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
     ref n,
     ref g,
     ref n_square,
-    ..
   } = key;
 
   // FIXME: This is not random at all! Need to choose r s.t. 0 < r < n, with gcd(r,n) = 1
@@ -168,7 +155,6 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
     ref mu,
     ref p,
     ref q,
-    ..
   } = key;
 
   let n = p * q;
