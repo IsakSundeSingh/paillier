@@ -242,7 +242,7 @@ mod quick_maths {
   }
 
   pub(crate) fn power_mod(a: &BigInt, exponent: &BigInt, modulus: &BigInt) -> BigInt {
-    modular_exponentiation(a, exponent, modulus)
+    a.modpow(exponent, modulus)
   }
 
   pub(crate) fn div(a: &BigInt, b: &BigInt) -> BigInt {
@@ -258,44 +258,6 @@ mod quick_maths {
     glass_pumpkin::prime::new(bits)
       .ok()
       .map(|big| BigInt::from_biguint(num::bigint::Sign::Plus, big))
-  }
-
-  fn modular_exponentiation<T: num::bigint::ToBigInt>(n: &T, e: &T, m: &T) -> BigInt {
-    // Convert n, e, and m to BigInt:
-    let n = n.to_bigint().unwrap();
-    let e = e.to_bigint().unwrap();
-    let m = m.to_bigint().unwrap();
-    // Sanity check:  Verify that the exponent is not negative:
-    assert!(e >= Zero::zero());
-
-    // As most modular exponentiations do, return 1 if the exponent is 0:
-    if e == Zero::zero() {
-      return One::one();
-    }
-    // Now do the modular exponentiation algorithm:
-    let mut result: BigInt = One::one();
-    let mut base = n.modulo(&m);
-    let mut exp = e;
-    // Loop until we can return out result:
-    macro_rules! two {
-      () => {
-        &BigInt::from_u64(2).unwrap()
-      };
-    }
-    loop {
-      if &exp.modulo(two!()) == &One::one() {
-        result *= &base;
-        result = result.modulo(&m);
-      }
-
-      if exp == One::one() {
-        return result;
-      }
-
-      exp /= two!();
-      base *= base.clone();
-      base = base.modulo(&m);
-    }
   }
 
   pub trait Modulo<RHS = Self> {
