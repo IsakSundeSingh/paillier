@@ -2,6 +2,8 @@ use num::traits::{One, Zero};
 use num::BigInt;
 use std::ops::{Add, Mul};
 
+mod math_extensions;
+
 #[derive(PartialEq)]
 pub struct PublicKey {
   g: BigInt,
@@ -50,7 +52,7 @@ impl CipherText {
 impl Add<CipherText> for CipherText {
   type Output = CipherText;
   fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
-    use quick_maths::Modulo;
+    use math_extensions::Modulo;
 
     let CipherText {
       data: c1,
@@ -73,7 +75,7 @@ impl Add<CipherText> for CipherText {
 impl Mul<PlainText> for CipherText {
   type Output = Self;
   fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
-    use quick_maths::power_mod;
+    use math_extensions::power_mod;
 
     let PlainText(p) = rhs;
     // TODO: Assert that ciphertext and plaintext are generated using the same keyset
@@ -85,7 +87,7 @@ impl Mul<PlainText> for CipherText {
 }
 
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
-  use quick_maths::*;
+  use math_extensions::{gcd, gen_prime, l_function, lcm, mod_inv, power_mod};
   use rand::Rng;
 
   let bits = 256;
@@ -120,7 +122,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
 }
 
 pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
-  use quick_maths::{gcd, power_mod, Modulo};
+  use math_extensions::{gcd, power_mod, Modulo};
 
   let PublicKey {
     ref n,
@@ -143,7 +145,7 @@ pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
 }
 
 pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
-  use quick_maths::{l_function, power_mod, Modulo};
+  use math_extensions::{l_function, power_mod, Modulo};
 
   let CipherText {
     data,
@@ -215,91 +217,6 @@ mod tests {
 
       let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
       assert_eq!(x * y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
-    }
-  }
-}
-
-mod quick_maths {
-  use num::traits::{One, Zero};
-  use num::BigInt;
-
-  pub(crate) fn lcm(a: &BigInt, b: &BigInt) -> BigInt {
-    num::integer::lcm(a.clone(), b.clone())
-  }
-
-  pub(crate) fn gcd(a: &BigInt, b: &BigInt) -> BigInt {
-    num::integer::gcd(a.clone(), b.clone())
-  }
-
-  pub(crate) fn mod_inv(a: &BigInt, b: &BigInt) -> Option<BigInt> {
-    let x = mod_inv2(a.clone(), b.clone());
-    // TODO: Fix modular inverse possibly being non-existent
-    Some(x)
-  }
-
-  fn mod_inv2(a: BigInt, modulus: BigInt) -> BigInt {
-    let mut mn = (modulus.clone(), a);
-    let mut xy = (BigInt::zero(), BigInt::one());
-    while mn.1 != BigInt::zero() {
-      let b = (&mn.0).modulo(&mn.1);
-      xy = (xy.1.clone(), (xy.0 - ((&mn.0) / (&mn.1)) * xy.1));
-      mn = (mn.1, b);
-    }
-    while xy.0 < BigInt::zero() {
-      xy = (((&xy.0) + (&modulus)), xy.1);
-    }
-    xy.0
-  }
-
-  pub(crate) fn power_mod(a: &BigInt, exponent: &BigInt, modulus: &BigInt) -> BigInt {
-    a.modpow(exponent, modulus)
-  }
-
-  pub(crate) fn div(a: &BigInt, b: &BigInt) -> BigInt {
-    let (quotient, _remainder) = num::Integer::div_rem(a, b);
-    quotient
-  }
-
-  pub(crate) fn l_function(x: &BigInt, n: &BigInt) -> BigInt {
-    div(&(x - BigInt::one()), n)
-  }
-
-  pub(crate) fn gen_prime(bits: usize) -> Option<BigInt> {
-    glass_pumpkin::prime::new(bits)
-      .ok()
-      .map(|big| BigInt::from_biguint(num::bigint::Sign::Plus, big))
-  }
-
-  pub trait Modulo<RHS = Self> {
-    type Output;
-    fn modulo(&self, rhs: &RHS) -> Self::Output;
-  }
-
-  impl Modulo<BigInt> for BigInt {
-    type Output = BigInt;
-    fn modulo(&self, rhs: &BigInt) -> Self::Output {
-      use num::traits::sign::Signed;
-      let r = self % rhs;
-      if r < BigInt::zero() {
-        r + rhs.abs()
-      } else {
-        r
-      }
-    }
-  }
-
-  #[cfg(test)]
-  mod tests {
-    use super::*;
-    use num::traits::FromPrimitive;
-
-    #[test]
-    fn div_works() {
-      let a = BigInt::from_u64(10).unwrap();
-      let b = BigInt::from_u64(3).unwrap();
-      let v = div(&a, &b);
-      assert_ne!(a, (&v + BigInt::one()) * &b);
-      assert!(a >= v * b);
     }
   }
 }
