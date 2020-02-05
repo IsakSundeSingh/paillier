@@ -1,5 +1,6 @@
-use num::traits::{One, ToPrimitive, Zero};
+use num::traits::{One, Zero};
 use num::BigInt;
+use std::ops::{Add, Mul};
 
 #[derive(PartialEq)]
 pub struct PublicKey {
@@ -31,20 +32,61 @@ impl PlainText {
 }
 
 #[derive(Debug)]
-pub struct CipherText(BigInt);
+pub struct CipherText {
+  data: BigInt,
+  n_square: BigInt,
+}
 impl CipherText {
   fn new(c: &BigInt, n_square: &BigInt) -> Option<Self> {
-    println!("Ciphertext: {}", c);
     if c >= &Zero::zero() && c < n_square {
-      Some(CipherText(c.clone()))
+      Some(CipherText {
+        data: c.clone(),
+        n_square: n_square.clone(),
+      })
     } else {
       None
     }
   }
 }
 
+impl Add<CipherText> for CipherText {
+  type Output = CipherText;
+  fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
+    use quick_maths::Modulo;
+
+    let CipherText {
+      data: c1,
+      n_square: c1_n_square,
+    } = self;
+
+    let CipherText {
+      data: c2,
+      n_square: c2_n_square,
+    } = rhs;
+    assert_eq!(&c1_n_square, &c2_n_square); // Ensure ciphertexts were encrypted with the same keys
+
+    CipherText {
+      data: (c1 * c2).modulo(&c1_n_square),
+      n_square: c1_n_square.clone(),
+    }
+  }
+}
+
+impl Mul<PlainText> for CipherText {
+  type Output = Self;
+  fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
+    use quick_maths::power_mod;
+
+    let PlainText(p) = rhs;
+    // TODO: Assert that ciphertext and plaintext are generated using the same keyset
+    CipherText {
+      data: power_mod(&self.data, &p, &self.n_square),
+      ..self
+    }
+  }
+}
+
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
-  use num::bigint::RandBigInt;
   use quick_maths::*;
   use rand::Rng;
   let bits = 256;
@@ -98,14 +140,16 @@ pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
   assert_eq!(gcd(&r, &n), BigInt::one());
 
   let PlainText(ref m) = plaintext;
-  use num::bigint::BigInt;
   let c = (power_mod(g, m, n_square) * power_mod(&r, n, n_square)).modulo(n_square);
   CipherText::new(&c, n_square)
 }
 
 pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
   use quick_maths::{l_function, power_mod, Modulo};
-  let CipherText(c) = ciphertext;
+  let CipherText {
+    data,
+    n_square: cipher_n_square,
+  } = ciphertext;
   let PrivateKey {
     ref lambda,
     ref mu,
@@ -117,9 +161,10 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
   let n = p * q;
   let n_square = &n * &n;
 
-  assert!(c < &n_square);
+  assert_eq!(&n_square, cipher_n_square); // Ensure ciphertext was encrypted with corresponding key
+  assert!(data < &n_square);
 
-  let m = (l_function(&power_mod(c, lambda, &n_square), &n) * mu).modulo(&n);
+  let m = (l_function(&power_mod(data, lambda, &n_square), &n) * mu).modulo(&n);
   PlainText::new(&m, &n)
 }
 
@@ -134,8 +179,41 @@ fn can_encrypt_and_decrypt() {
   assert_eq!(plaintext, decrypted);
 }
 
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use num::traits::{FromPrimitive, ToPrimitive};
+  use proptest::prelude::*;
+  proptest! {
+    #![proptest_config(ProptestConfig { cases: 10, ..ProptestConfig::default() })]
+
+    #[test]
+    fn can_add_ciphertexts(x in 0u64..1_000_000, y in 0u64..1_000_000) {
+      let p1 = PlainText(BigInt::from_u64(x).unwrap());
+      let p2 = PlainText(BigInt::from_u64(y).unwrap());
+      let (public_key, private_key) = generate_keypair().expect("Key generation failed");
+      let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
+      let c2 = encrypt(&p2, &public_key).expect("c2 encryption failed");
+      let c = c1 + c2;
+      let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
+      assert_eq!(x + y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
+    }
+
+    #[test]
+    fn can_multiply_ciphertext_and_plaintext(x in 0u64..1_000_000, y in 0u64..1_000) {
+      let p1 = PlainText(BigInt::from_u64(x).unwrap());
+      let p2 = PlainText(BigInt::from_u64(y).unwrap());
+      let (public_key, private_key) = generate_keypair().expect("Key generation failed");
+      let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
+      let c = c1 * p2;
+      let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
+      assert_eq!(x * y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
+    }
+  }
+}
+
 mod quick_maths {
-  use num::traits::{FromPrimitive, One, ToPrimitive, Zero};
+  use num::traits::{FromPrimitive, One, Zero};
   use num::BigInt;
   pub(crate) fn lcm(a: &BigInt, b: &BigInt) -> BigInt {
     num::integer::lcm(a.clone(), b.clone())
@@ -145,6 +223,7 @@ mod quick_maths {
   }
   pub(crate) fn mod_inv(a: &BigInt, b: &BigInt) -> Option<BigInt> {
     let x = mod_inv2(a.clone(), b.clone());
+    // TODO: Fix modular inverse possibly being non-existent
     Some(x)
   }
 
@@ -239,7 +318,6 @@ mod quick_maths {
   #[cfg(test)]
   mod tests {
     use super::*;
-    use proptest::prelude::*;
 
     #[test]
     fn div_works() {
