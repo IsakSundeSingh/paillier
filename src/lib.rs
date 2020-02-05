@@ -185,7 +185,7 @@ mod tests {
   use num::traits::{FromPrimitive, ToPrimitive};
   use proptest::prelude::*;
   proptest! {
-    #![proptest_config(ProptestConfig { cases: 10, ..ProptestConfig::default() })]
+    #![proptest_config(ProptestConfig { cases: 25, ..ProptestConfig::default() })]
 
     #[test]
     fn can_add_ciphertexts(x in 0u64..1_000_000, y in 0u64..1_000_000) {
