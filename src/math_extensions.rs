@@ -9,10 +9,14 @@ pub(crate) fn gcd(a: &BigInt, b: &BigInt) -> BigInt {
   num::integer::gcd(a.clone(), b.clone())
 }
 
+/// The modular inverse of `a mod b` exists only if `a` and `b` are coprime (`[gcd]` is one).
+/// Returns `None` when the modular inverse doesn't exist.
 pub(crate) fn mod_inv(a: &BigInt, b: &BigInt) -> Option<BigInt> {
-  let x = mod_inv2(a.clone(), b.clone());
-  // TODO: Fix modular inverse possibly being non-existent
-  Some(x)
+  if gcd(a, b) == One::one() {
+    Some(mod_inv2(a.clone(), b.clone()))
+  } else {
+    None
+  }
 }
 
 fn mod_inv2(a: BigInt, modulus: BigInt) -> BigInt {
