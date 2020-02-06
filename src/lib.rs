@@ -51,6 +51,8 @@ impl CipherText {
 
 impl Add<CipherText> for CipherText {
   type Output = CipherText;
+
+  #[allow(clippy::suspicious_arithmetic_impl)]
   fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
     use math_extensions::Modulo;
 
