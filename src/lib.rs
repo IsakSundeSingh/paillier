@@ -135,13 +135,16 @@ pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
     ref n_square,
   } = key;
 
-  // FIXME: This is not random at all! Need to choose r s.t. 0 < r < n, with gcd(r,n) = 1
-  let mut r = n - BigInt::one();
-  while gcd(&r, &n) != One::one() {
-    r -= BigInt::one();
-  }
+  let mut rng = rand::thread_rng();
+  use num::bigint::RandBigInt;
 
-  let r = r;
+  let r = loop {
+    let r = rng.gen_bigint(n.bits());
+    if gcd(&r, &n) == BigInt::one() && (BigInt::one()..n.clone()).contains(&r) {
+      break r;
+    }
+  };
+
   assert_eq!(gcd(&r, &n), BigInt::one());
 
   let PlainText(ref m) = plaintext;
