@@ -13,8 +13,8 @@ pub struct PublicKey {
 
 #[derive(PartialEq)]
 pub struct PrivateKey {
-  p: BigInt,
-  q: BigInt,
+  n: BigInt,
+  n_square: BigInt,
   lambda: BigInt,
   mu: BigInt,
 }
@@ -95,7 +95,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   let bits = 256;
   let p = gen_prime(bits)?;
   let q = gen_prime(bits)?;
-  let n = (&p) * (&q);
+  let n = &p * &q;
 
   assert_eq!(
     gcd(&n, &(&(&p - BigInt::one()) * &(&q - BigInt::one()))),
@@ -103,7 +103,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   );
 
   let lambda = lcm(&(&p - BigInt::one()), &(&q - BigInt::one()));
-  let n_square = (&n) * (&n);
+  let n_square = &n * &n;
 
   assert!(n_square > num::traits::Zero::zero());
 
@@ -118,8 +118,17 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   //.expect(&format!("n ({}) does not divide g ({})", n, g));
 
   Some((
-    PublicKey { g, n, n_square },
-    PrivateKey { p, q, lambda, mu },
+    PublicKey {
+      g,
+      n: n.clone(),
+      n_square: n_square.clone(),
+    },
+    PrivateKey {
+      lambda,
+      mu,
+      n,
+      n_square,
+    },
   ))
 }
 
@@ -157,15 +166,12 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
   let PrivateKey {
     ref lambda,
     ref mu,
-    ref p,
-    ref q,
+    ref n,
+    ref n_square,
   } = key;
 
-  let n = p * q;
-  let n_square = &n * &n;
-
-  assert_eq!(&n_square, cipher_n_square); // Ensure ciphertext was encrypted with corresponding key
-  assert!(*data < n_square);
+  assert_eq!(n_square, cipher_n_square); // Ensure ciphertext was encrypted with corresponding key
+  assert!(data < n_square);
 
   let m = (l_function(&power_mod(data, lambda, &n_square), &n) * mu).modulo(&n);
   PlainText::new(&m, &n)
