@@ -3,6 +3,7 @@ use num::BigInt;
 use std::ops::{Add, Mul};
 
 mod math_extensions;
+use math_extensions::{gcd, gen_prime, l_function, lcm, mod_inv, power_mod, Modulo};
 
 #[derive(PartialEq)]
 pub struct PublicKey {
@@ -54,8 +55,6 @@ impl Add<CipherText> for CipherText {
 
   #[allow(clippy::suspicious_arithmetic_impl)]
   fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
-    use math_extensions::Modulo;
-
     let CipherText {
       data: c1,
       n_square: c1_n_square,
@@ -77,8 +76,6 @@ impl Add<CipherText> for CipherText {
 impl Mul<PlainText> for CipherText {
   type Output = Self;
   fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
-    use math_extensions::power_mod;
-
     let PlainText(p) = rhs;
     // TODO: Assert that ciphertext and plaintext are generated using the same keyset
     CipherText {
@@ -89,7 +86,6 @@ impl Mul<PlainText> for CipherText {
 }
 
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
-  use math_extensions::{gcd, gen_prime, l_function, lcm, mod_inv, power_mod};
   use rand::Rng;
 
   let bits = 256;
@@ -133,8 +129,6 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
 }
 
 pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
-  use math_extensions::{gcd, power_mod, Modulo};
-
   let PublicKey {
     ref n,
     ref g,
@@ -156,8 +150,6 @@ pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
 }
 
 pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
-  use math_extensions::{l_function, power_mod, Modulo};
-
   let CipherText {
     data,
     n_square: cipher_n_square,

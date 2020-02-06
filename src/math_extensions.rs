@@ -20,11 +20,11 @@ fn mod_inv2(a: BigInt, modulus: BigInt) -> BigInt {
   let mut xy = (BigInt::zero(), BigInt::one());
   while mn.1 != BigInt::zero() {
     let b = (&mn.0).modulo(&mn.1);
-    xy = (xy.1.clone(), (xy.0 - ((&mn.0) / (&mn.1)) * xy.1));
+    xy = (xy.1.clone(), xy.0 - (&mn.0 / &mn.1) * xy.1);
     mn = (mn.1, b);
   }
   while xy.0 < BigInt::zero() {
-    xy = (((&xy.0) + (&modulus)), xy.1);
+    xy = (&xy.0 + &modulus, xy.1);
   }
   xy.0
 }
@@ -33,7 +33,7 @@ pub(crate) fn power_mod(a: &BigInt, exponent: &BigInt, modulus: &BigInt) -> BigI
   a.modpow(exponent, modulus)
 }
 
-pub(crate) fn div(a: &BigInt, b: &BigInt) -> BigInt {
+pub fn div(a: &BigInt, b: &BigInt) -> BigInt {
   let (quotient, _remainder) = num::Integer::div_rem(a, b);
   quotient
 }
