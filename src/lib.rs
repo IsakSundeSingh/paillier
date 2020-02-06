@@ -23,7 +23,7 @@ pub struct PrivateKey {
 pub struct PlainText(BigInt);
 impl PlainText {
   pub fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
-    if m >= &BigInt::zero() && m < n {
+    if *m >= BigInt::zero() && m < n {
       Some(PlainText(m.clone()))
     } else {
       None
@@ -38,7 +38,7 @@ pub struct CipherText {
 }
 impl CipherText {
   fn new(c: &BigInt, n_square: &BigInt) -> Option<Self> {
-    if c >= &Zero::zero() && c < n_square {
+    if *c >= Zero::zero() && c < n_square {
       Some(CipherText {
         data: c.clone(),
         n_square: n_square.clone(),
@@ -105,7 +105,7 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   let lambda = lcm(&(&p - BigInt::one()), &(&q - BigInt::one()));
   let n_square = (&n) * (&n);
 
-  assert!(&n_square > &num::traits::Zero::zero());
+  assert!(n_square > num::traits::Zero::zero());
 
   let mut rng = rand::thread_rng();
   let bits = num::bigint::RandomBits::new(n_square.bits());
@@ -165,7 +165,7 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
   let n_square = &n * &n;
 
   assert_eq!(&n_square, cipher_n_square); // Ensure ciphertext was encrypted with corresponding key
-  assert!(data < &n_square);
+  assert!(*data < n_square);
 
   let m = (l_function(&power_mod(data, lambda, &n_square), &n) * mu).modulo(&n);
   PlainText::new(&m, &n)
