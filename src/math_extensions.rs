@@ -47,7 +47,7 @@ pub(crate) fn l_function(x: &BigInt, n: &BigInt) -> BigInt {
 }
 
 pub(crate) fn gen_prime(bits: usize) -> Option<BigInt> {
-  glass_pumpkin::prime::new(bits)
+  glass_pumpkin::prime::from_rng(bits, &mut rand::thread_rng())
     .ok()
     .map(|big| BigInt::from_biguint(num::bigint::Sign::Plus, big))
 }

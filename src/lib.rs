@@ -111,7 +111,6 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   let pmod = power_mod(&g, &lambda, &n_square);
   let l_value = l_function(&pmod, &n);
   let mu = mod_inv(&l_value, &n)?;
-  //.expect(&format!("n ({}) does not divide g ({})", n, g));
 
   Some((
     PublicKey {
