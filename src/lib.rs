@@ -1,89 +1,10 @@
-use num::traits::{One, Zero};
+use num::traits::One;
 use num::BigInt;
-use std::ops::{Add, Mul};
 
 mod math_extensions;
 use math_extensions::{gcd, gen_prime, l_function, lcm, mod_inv, power_mod, Modulo};
-
-#[derive(PartialEq)]
-pub struct PublicKey {
-  g: BigInt,
-  n: BigInt,
-  n_square: BigInt,
-}
-
-#[derive(PartialEq)]
-pub struct PrivateKey {
-  n: BigInt,
-  n_square: BigInt,
-  lambda: BigInt,
-  mu: BigInt,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct PlainText(BigInt);
-impl PlainText {
-  pub fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
-    if *m >= BigInt::zero() && m < n {
-      Some(PlainText(m.clone()))
-    } else {
-      None
-    }
-  }
-}
-
-#[derive(Debug)]
-pub struct CipherText {
-  data: BigInt,
-  n_square: BigInt,
-}
-impl CipherText {
-  fn new(c: &BigInt, n_square: &BigInt) -> Option<Self> {
-    if *c >= Zero::zero() && c < n_square {
-      Some(CipherText {
-        data: c.clone(),
-        n_square: n_square.clone(),
-      })
-    } else {
-      None
-    }
-  }
-}
-
-impl Add<CipherText> for CipherText {
-  type Output = CipherText;
-
-  #[allow(clippy::suspicious_arithmetic_impl)]
-  fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
-    let CipherText {
-      data: c1,
-      n_square: c1_n_square,
-    } = self;
-
-    let CipherText {
-      data: c2,
-      n_square: c2_n_square,
-    } = rhs;
-    assert_eq!(&c1_n_square, &c2_n_square); // Ensure ciphertexts were encrypted with the same keys
-
-    CipherText {
-      data: (c1 * c2).modulo(&c1_n_square),
-      n_square: c1_n_square.clone(),
-    }
-  }
-}
-
-impl Mul<PlainText> for CipherText {
-  type Output = Self;
-  fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
-    let PlainText(p) = rhs;
-    // TODO: Assert that ciphertext and plaintext are generated using the same keyset
-    CipherText {
-      data: power_mod(&self.data, &p, &self.n_square),
-      ..self
-    }
-  }
-}
+mod types;
+use types::{CipherText, PlainText, PrivateKey, PublicKey};
 
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   use rand::Rng;
