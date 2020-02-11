@@ -19,6 +19,7 @@ pub struct PrivateKey {
   pub(crate) mu: BigInt,
 }
 
+/// Type representing a PlainText
 #[derive(Debug, PartialEq)]
 pub struct PlainText(pub(crate) BigInt);
 impl PlainText {
@@ -50,8 +51,41 @@ impl CipherText {
 }
 
 impl Add<CipherText> for CipherText {
-  type Output = CipherText;
+  type Output = Self;
 
+  /// Homomorphically adds two ciphertexts so that the resulting ciphertext represents the sum of the underlying plaintexts.
+  ///
+  /// # Panics
+  ///
+  /// Will panic if the two ciphertexts are not encrypted using the same keyset.
+  ///
+  /// # Examples
+  ///
+  /// Correct use:
+  /// ```
+  /// # use paillier::{generate_keypair, encrypt, decrypt, PlainText};
+  /// let (public_key, private_key) = generate_keypair().unwrap();
+  /// let c1 = encrypt(&PlainText::from(1), &public_key).unwrap();
+  /// let c2 = encrypt(&PlainText::from(1), &public_key).unwrap();
+  ///
+  /// let c = c1 + c2;
+  ///
+  /// let decrypted = decrypt(&c, &private_key).unwrap();
+  ///
+  /// assert_eq!(decrypted, PlainText::from(2));
+  /// ```
+  ///
+  /// Incorrect use:
+  /// ```should_panic
+  /// # use paillier::{generate_keypair, encrypt, PlainText};
+  /// # let (public_key1, _private_key1) = generate_keypair().expect("Key generation failed");
+  /// # let (public_key2, _private_key2) = generate_keypair().expect("Key generation failed");
+  /// let c1 = encrypt(&PlainText::from(1), &public_key1).expect("Encryption failed");
+  /// let c2 = encrypt(&PlainText::from(1), &public_key2).expect("Encryption failed");
+  ///
+  /// let c = c1 + c2; // panics!
+  ///
+  /// ```
   #[allow(clippy::suspicious_arithmetic_impl)]
   fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
     let CipherText {
@@ -63,7 +97,9 @@ impl Add<CipherText> for CipherText {
       data: c2,
       n_square: c2_n_square,
     } = rhs;
-    assert_eq!(&c1_n_square, &c2_n_square); // Ensure ciphertexts were encrypted with the same keys
+
+    // Ensure ciphertexts were encrypted with the same keys
+    assert_eq!(&c1_n_square, &c2_n_square);
 
     CipherText {
       data: (c1 * c2).modulo(&c1_n_square),
@@ -74,6 +110,23 @@ impl Add<CipherText> for CipherText {
 
 impl Mul<PlainText> for CipherText {
   type Output = Self;
+
+  /// Homomorphically multiplies two a ciphertext with a plaintext so that the resulting ciphertext represents the product of the underlying plaintext and the given plaintext.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// # use paillier::{generate_keypair, encrypt, decrypt, PlainText};
+  /// let (public_key, private_key) = generate_keypair().unwrap();
+  /// let c = encrypt(&PlainText::from(2), &public_key).unwrap();
+  /// let p = PlainText::from(3);
+  ///
+  /// let c = c * p;
+  ///
+  /// let decrypted = decrypt(&c, &private_key).unwrap();
+  ///
+  /// assert_eq!(decrypted, PlainText::from(6));
+  /// ```
   fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
     let PlainText(p) = rhs;
     // TODO: If p is negative, perhaps find modular inverse and complete multiplication?
@@ -87,23 +140,27 @@ impl Mul<PlainText> for CipherText {
 
 mod impls {
   use super::PlainText;
+  use doc_comment::doc_comment;
 
   macro_rules! impl_from_for_single_plaintext {
     ($t: ty) => {
       paste::item! {
-        /// Convert from `$t` to a [`PlainText`]
-        /// Note: This is a raw conversion and the `PlainText` value may potentially be invalid in use if
-        /// `val` is not in the range `0 < val < n`, where `n` is the public modulus of the encryption scheme.
-        /// `val >= n` is unlikely as for the scheme to be secure `n` should be `512` bits or larger while any
-        /// primitive type is always 128 bit or less.
         impl ::std::convert::From<$t> for PlainText {
-          fn from(val: $t) -> Self {
-            use num::BigInt;
-            use num::traits::FromPrimitive;
+          doc_comment!{
+            concat!("Convert from `", stringify!($t), "` to a `PlainText`
+              Note: This is a raw conversion and the `PlainText` value may potentially be invalid in use if
+              `x` is not in the range `0 < x < n`, where `n` is the public modulus of the encryption scheme.
+              `x >= n` is unlikely as for the scheme to be secure `n` should be `512` bits or larger while any
+              primitive type is always 128 bit or less."
+            ),
+            fn from(x: $t) -> Self {
+              use num::BigInt;
+              use num::traits::FromPrimitive;
 
-            PlainText(
-              BigInt::[<from_ $t>](val).unwrap()
-            )
+              PlainText(
+                BigInt::[<from_ $t>](x).unwrap()
+              )
+            }
           }
         }
       }

@@ -5,9 +5,21 @@ use num::BigInt;
 
 mod math_extensions;
 use math_extensions::{gcd, gen_prime, l_function, lcm, mod_inv, power_mod, Modulo};
-mod types;
-use types::{CipherText, PlainText, PrivateKey, PublicKey};
+pub mod types;
+pub use types::{CipherText, PlainText, PrivateKey, PublicKey};
 
+/// Generates a keypair for encrypting and decrypting.
+///
+/// Returns `None` if key generation failed.
+///
+/// # Examples
+///
+/// Generating a keypair can be done as follows:
+///
+/// ```
+/// # use paillier::generate_keypair;
+/// let (public_key, private_key) = generate_keypair().expect("Key generation failed");
+/// ```
 pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   use rand::Rng;
 
@@ -50,6 +62,19 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
   ))
 }
 
+/// Encrypts a given [PlainText](types/struct.PlainText.html) with a given [PublicKey](types/struct.PublicKey.html)
+/// and converts it into a [CipherText](types/struct.CipherText.html) on success and returns `None` on failure.
+///
+/// # Examples
+///
+/// Values can be encrypted as follows:
+///
+/// ```
+/// # use paillier::{encrypt, generate_keypair, PlainText};
+/// let (public_key, _private_key) = generate_keypair().unwrap();
+/// let plaintext = PlainText::from(0);
+/// let encrypted = encrypt(&plaintext, &public_key).expect("Encryption failed");
+/// ```
 pub fn encrypt(plaintext: &PlainText, key: &PublicKey) -> Option<CipherText> {
   let PublicKey {
     ref n,

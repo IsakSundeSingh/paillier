@@ -52,7 +52,7 @@ pub(crate) fn gen_prime(bits: usize) -> Option<BigInt> {
     .map(|big| BigInt::from_biguint(num::bigint::Sign::Plus, big))
 }
 
-pub trait Modulo<RHS = Self> {
+pub(crate) trait Modulo<RHS = Self> {
   type Output;
   fn modulo(&self, rhs: &RHS) -> Self::Output;
 }
