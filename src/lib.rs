@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use num::traits::One;
 use num::BigInt;
 
