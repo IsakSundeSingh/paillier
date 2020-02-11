@@ -96,11 +96,8 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
 
 #[test]
 fn can_encrypt_and_decrypt() {
-  use num::traits::FromPrimitive;
-
   let (public_key, private_key) = generate_keypair().expect("Couldn't generate keypair");
-  let plaintext = PlainText::new(&BigInt::from_u64(123).unwrap(), &public_key.n)
-    .expect("Couldn't encode plaintext");
+  let plaintext = 123.into();
 
   let ciphertext = encrypt(&plaintext, &public_key).expect("Couldn't encrypt plaintext");
   let decrypted = decrypt(&ciphertext, &private_key).expect("Couldn't decrypt ciphertext");
@@ -111,7 +108,7 @@ fn can_encrypt_and_decrypt() {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use num::traits::{FromPrimitive, ToPrimitive};
+  use num::traits::ToPrimitive;
   use proptest::prelude::*;
 
   proptest! {
@@ -119,8 +116,8 @@ mod tests {
 
     #[test]
     fn can_add_ciphertexts(x in 0u64..1_000_000, y in 0u64..1_000_000) {
-      let p1 = PlainText(BigInt::from_u64(x).unwrap());
-      let p2 = PlainText(BigInt::from_u64(y).unwrap());
+      let p1 = PlainText::from(x);
+      let p2 = PlainText::from(y);
       let (public_key, private_key) = generate_keypair().expect("Key generation failed");
       let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
       let c2 = encrypt(&p2, &public_key).expect("c2 encryption failed");
@@ -133,8 +130,8 @@ mod tests {
 
     #[test]
     fn can_multiply_ciphertext_and_plaintext(x in 0u64..1_000_000, y in 0u64..1_000) {
-      let p1 = PlainText(BigInt::from_u64(x).unwrap());
-      let p2 = PlainText(BigInt::from_u64(y).unwrap());
+      let p1 = PlainText::from(x);
+      let p2 = PlainText::from(y);
       let (public_key, private_key) = generate_keypair().expect("Key generation failed");
       let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
 

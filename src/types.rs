@@ -76,10 +76,47 @@ impl Mul<PlainText> for CipherText {
   type Output = Self;
   fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
     let PlainText(p) = rhs;
+    // TODO: If p is negative, perhaps find modular inverse and complete multiplication?
     // TODO: Assert that ciphertext and plaintext are generated using the same keyset
     CipherText {
       data: power_mod(&self.data, &p, &self.n_square),
       ..self
     }
   }
+}
+
+mod impls {
+  use super::PlainText;
+
+  macro_rules! impl_from_for_single_plaintext {
+    ($t: ty) => {
+      paste::item! {
+        /// Convert from `$t` to a [`PlainText`]
+        /// Note: This is a raw conversion and the `PlainText` value may potentially be invalid in use if
+        /// `val` is not in the range `0 < val < n`, where `n` is the public modulus of the encryption scheme.
+        /// `val >= n` is unlikely as for the scheme to be secure `n` should be `512` bits or larger while any
+        /// primitive type is always 128 bit or less.
+        impl ::std::convert::From<$t> for PlainText {
+          fn from(val: $t) -> Self {
+            use num::BigInt;
+            use num::traits::FromPrimitive;
+
+            PlainText(
+              BigInt::[<from_ $t>](val).unwrap()
+            )
+          }
+        }
+      }
+    };
+  }
+
+  macro_rules! impl_from_for_plaintext {
+    ($($t:ty),+) => {
+      $(
+        impl_from_for_single_plaintext!($t);
+      )+
+    };
+  }
+
+  impl_from_for_plaintext!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 }
