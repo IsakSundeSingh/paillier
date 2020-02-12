@@ -20,7 +20,7 @@ pub struct PrivateKey {
 }
 
 /// Type representing a PlainText
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PlainText(pub(crate) BigInt);
 impl PlainText {
   pub fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
@@ -32,7 +32,7 @@ impl PlainText {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CipherText {
   pub(crate) data: BigInt,
   pub(crate) n_square: BigInt,
@@ -87,7 +87,7 @@ impl Add<CipherText> for CipherText {
   ///
   /// ```
   #[allow(clippy::suspicious_arithmetic_impl)]
-  fn add(self, rhs: Self) -> <Self as Add<Self>>::Output {
+  fn add(self, rhs: Self) -> Self::Output {
     let CipherText {
       data: c1,
       n_square: c1_n_square,
@@ -143,7 +143,7 @@ impl Sub<CipherText> for CipherText {
   ///
   /// let c = c1 - c2; // panics!
   /// ```
-  fn sub(self, rhs: Self) -> Self {
+  fn sub(self, rhs: Self) -> Self::Output {
     let CipherText {
       data: minuend,
       n_square: c1_n_square,
@@ -186,7 +186,7 @@ impl Mul<PlainText> for CipherText {
   ///
   /// assert_eq!(decrypted, PlainText::from(6));
   /// ```
-  fn mul(self, rhs: PlainText) -> <Self as Mul<PlainText>>::Output {
+  fn mul(self, rhs: PlainText) -> Self::Output {
     let PlainText(p) = rhs;
     // TODO: If p is negative, perhaps find modular inverse and complete multiplication?
     // TODO: Assert that ciphertext and plaintext are generated using the same keyset
@@ -194,6 +194,30 @@ impl Mul<PlainText> for CipherText {
       data: power_mod(&self.data, &p, &self.n_square),
       ..self
     }
+  }
+}
+
+impl Mul<CipherText> for PlainText {
+  type Output = CipherText;
+
+  /// Homomorphically multiplies two a plaintext with a ciphertext so that the resulting ciphertext represents the product of the given plaintext and the underlying plaintext.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// # use paillier::{generate_keypair, encrypt, decrypt, PlainText};
+  /// let (public_key, private_key) = generate_keypair().unwrap();
+  /// let c = encrypt(&PlainText::from(2), &public_key).unwrap();
+  /// let p = PlainText::from(3);
+  ///
+  /// let c = p * c;
+  ///
+  /// let decrypted = decrypt(&c, &private_key).unwrap();
+  ///
+  /// assert_eq!(decrypted, PlainText::from(6));
+  /// ```
+  fn mul(self, rhs: CipherText) -> Self::Output {
+    rhs * self
   }
 }
 

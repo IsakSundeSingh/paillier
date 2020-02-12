@@ -160,10 +160,12 @@ mod tests {
       let (public_key, private_key) = generate_keypair().expect("Key generation failed");
       let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
 
-      let c = c1 * p2;
+      let c = c1.clone() * p2.clone();
+      let c_commutative = p2 * c1;
 
       let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
       assert_eq!(x * y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
+      assert_eq!(c, c_commutative);
     }
   }
 
