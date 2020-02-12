@@ -143,6 +143,7 @@ impl Sub<CipherText> for CipherText {
   ///
   /// let c = c1 - c2; // panics!
   /// ```
+  #[allow(clippy::suspicious_arithmetic_impl)]
   fn sub(self, rhs: Self) -> Self::Output {
     let CipherText {
       data: minuend,
