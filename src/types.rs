@@ -1,13 +1,13 @@
 use num::traits::Zero;
 use num::BigInt;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Mul, Sub};
 
 use crate::math_extensions::{power_mod, Modulo};
 
 #[derive(PartialEq)]
 pub struct PublicKey {
-  pub(crate) g: BigInt,
   pub n: BigInt,
+  pub(crate) g: BigInt,
   pub(crate) n_square: BigInt,
 }
 
@@ -64,7 +64,7 @@ impl Add<CipherText> for CipherText {
   /// Correct use:
   /// ```
   /// # use paillier::{generate_keypair, encrypt, decrypt, PlainText};
-  /// let (public_key, private_key) = generate_keypair().unwrap();
+  /// # let (public_key, private_key) = generate_keypair().unwrap();
   /// let c1 = encrypt(&PlainText::from(1), &public_key).unwrap();
   /// let c2 = encrypt(&PlainText::from(1), &public_key).unwrap();
   ///
@@ -103,6 +103,65 @@ impl Add<CipherText> for CipherText {
 
     CipherText {
       data: (c1 * c2).modulo(&c1_n_square),
+      n_square: c1_n_square.clone(),
+    }
+  }
+}
+
+impl Sub<CipherText> for CipherText {
+  type Output = Self;
+
+  /// Homomorphically subtracts two ciphertexts so that the resulting ciphertext represents the difference of the underlying plaintexts.
+  ///
+  /// # Panics
+  ///
+  /// Will panic if the two ciphertexts are not encrypted using the same keyset.
+  ///
+  /// # Examples
+  ///
+  /// Correct use:
+  /// ```
+  /// # use paillier::{generate_keypair, encrypt, decrypt, PlainText};
+  /// # let (public_key, private_key) = generate_keypair().unwrap();
+  /// let c1 = encrypt(&PlainText::from(1), &public_key).unwrap();
+  /// let c2 = encrypt(&PlainText::from(1), &public_key).unwrap();
+  ///
+  /// let c = c1 - c2;
+  ///
+  /// let decrypted = decrypt(&c, &private_key).unwrap();
+  ///
+  /// assert_eq!(decrypted, PlainText::from(0));
+  /// ```
+  ///
+  /// Incorrect use:
+  /// ```should_panic
+  /// # use paillier::{generate_keypair, encrypt, PlainText};
+  /// # let (public_key1, _private_key1) = generate_keypair().expect("Key generation failed");
+  /// # let (public_key2, _private_key2) = generate_keypair().expect("Key generation failed");
+  /// let c1 = encrypt(&PlainText::from(1), &public_key1).expect("Encryption failed");
+  /// let c2 = encrypt(&PlainText::from(1), &public_key2).expect("Encryption failed");
+  ///
+  /// let c = c1 - c2; // panics!
+  /// ```
+  fn sub(self, rhs: Self) -> Self {
+    let CipherText {
+      data: minuend,
+      n_square: c1_n_square,
+    } = self;
+
+    let CipherText {
+      data: c2,
+      n_square: c2_n_square,
+    } = rhs;
+
+    // Ensure ciphertexts were encrypted with the same keys
+    assert_eq!(&c1_n_square, &c2_n_square);
+
+    let subtrahend = crate::mod_inv(&c2, &c2_n_square)
+      .expect("Cannot subtract as subtrahend has no multiplicative inverse");
+
+    CipherText {
+      data: (minuend * subtrahend).modulo(&c1_n_square),
       n_square: c1_n_square.clone(),
     }
   }
