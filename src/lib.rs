@@ -112,7 +112,8 @@ pub fn decrypt(ciphertext: &CipherText, key: &PrivateKey) -> Option<PlainText> {
     ref n_square,
   } = key;
 
-  assert_eq!(n_square, cipher_n_square); // Ensure ciphertext was encrypted with corresponding key
+  // Ensure ciphertext was encrypted with corresponding key
+  assert_eq!(n_square, cipher_n_square);
   assert!(data < n_square);
 
   let m = (l_function(&power_mod(data, lambda, &n_square), &n) * mu).modulo(&n);
@@ -140,7 +141,10 @@ mod tests {
     #![proptest_config(ProptestConfig { cases: 25, ..ProptestConfig::default() })]
 
     #[test]
-    fn can_add_ciphertexts(x in 0u64..1_000_000, y in 0u64..1_000_000) {
+    fn can_add_ciphertexts(x: u64, y: u64) {
+      // Ensure that x + y doesn't overflow
+      prop_assume!(x.checked_add(y).is_some());
+
       let p1 = PlainText::from(x);
       let p2 = PlainText::from(y);
       let (public_key, private_key) = generate_keypair().expect("Key generation failed");
@@ -150,7 +154,7 @@ mod tests {
       let c = c1 + c2;
 
       let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
-      assert_eq!(x + y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
+      prop_assert_eq!(x + y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
     }
 
     #[test]
@@ -164,28 +168,26 @@ mod tests {
       let c_commutative = p2 * c1;
 
       let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
-      assert_eq!(x * y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
-      assert_eq!(c, c_commutative);
+      prop_assert_eq!(x * y, decrypted.to_u64().expect("Couldn't convert decrypted result to u64"));
+      prop_assert_eq!(c, c_commutative);
     }
-  }
 
-  #[test]
-  fn can_subtract() {
-    let p1 = PlainText::from(10);
-    let p2 = PlainText::from(2);
-    let (public_key, private_key) = generate_keypair().expect("Key generation failed");
-    let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
-    let c2 = encrypt(&p2, &public_key).expect("c2 encryption failed");
 
-    let c = c1 - c2;
+    #[test]
+    fn can_subtract_cipertexts(x: u64, y: u64) {
+      // Ensure that x - y >= 0
+      prop_assume!(x >= y);
 
-    let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
+      let p1 = PlainText::from(x);
+      let p2 = PlainText::from(y);
+      let (public_key, private_key) = generate_keypair().expect("Key generation failed");
+      let c1 = encrypt(&p1, &public_key).expect("c1 encryption failed");
+      let c2 = encrypt(&p2, &public_key).expect("c2 encryption failed");
 
-    assert_eq!(
-      8,
-      decrypted
-        .to_i64()
-        .expect("Couldn't convert decrypted result to i64")
-    );
+      let c = c1 - c2;
+
+      let PlainText(decrypted) = decrypt(&c, &private_key).expect("Couldn't decrypt result!");
+      prop_assert_eq!(x - y, decrypted.to_u64().expect("Couldn't convert decrypted result to i64"));
+    }
   }
 }
