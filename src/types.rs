@@ -21,7 +21,7 @@ pub struct PrivateKey {
 
 /// Type representing a PlainText
 #[derive(Debug, Clone, PartialEq)]
-pub struct PlainText(pub(crate) BigInt);
+pub struct PlainText(pub BigInt);
 impl PlainText {
   pub fn new(m: &BigInt, n: &BigInt) -> Option<Self> {
     if *m >= BigInt::zero() && m < n {
