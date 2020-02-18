@@ -4,14 +4,14 @@ use std::ops::{Add, Mul, Sub};
 
 use crate::math_extensions::{power_mod, Modulo};
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct PublicKey {
   pub n: BigInt,
   pub(crate) g: BigInt,
   pub(crate) n_square: BigInt,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct PrivateKey {
   pub(crate) n: BigInt,
   pub(crate) n_square: BigInt,
