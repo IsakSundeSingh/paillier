@@ -62,12 +62,6 @@ jobs:
         with:
           command: test
 
-      - name: Run cargo documentation tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --doc
-
   lints:
     name: Lints
     runs-on: ubuntu-latest
