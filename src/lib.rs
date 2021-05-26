@@ -54,10 +54,10 @@ pub fn generate_keypair() -> Option<(PublicKey, PrivateKey)> {
       n_square: n_square.clone(),
     },
     PrivateKey {
-      lambda,
-      mu,
       n,
       n_square,
+      lambda,
+      mu,
     },
   ))
 }
