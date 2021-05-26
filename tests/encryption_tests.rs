@@ -11,7 +11,7 @@ mod tests {
   cached! {
     GENERATE_PRIMES;
     fn gen_same_primes() -> (PublicKey, PrivateKey) = {
-      generate_keypair().expect("Couldn't generate keypair").clone()
+      generate_keypair().expect("Couldn't generate keypair")
     }
   }
 
